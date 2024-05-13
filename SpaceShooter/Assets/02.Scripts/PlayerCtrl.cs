@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Unity.VisualStudio.Editor;
 using UnityEngine;
+using UnityEngine.UI;
+using Image = UnityEngine.UI.Image;
 
 public class PlayerCtrl : MonoBehaviour
 {
@@ -16,6 +19,19 @@ public class PlayerCtrl : MonoBehaviour
     //회전 속도 변수
     public float turnSpeed = 80.0f;
 
+    //초기 생명 값
+    private readonly float initHp = 100.0f;
+    //현재 생명 값
+    public float currHp;
+
+    //Hpbar 연결할 변수
+    private Image hpBar;
+
+    //델리게이트 선언
+    public delegate void PlayerDieHandler();
+
+    //이벤트 선언
+    public static event PlayerDieHandler OnPlayerDie;
 
     void Awake()
     {
@@ -33,6 +49,11 @@ public class PlayerCtrl : MonoBehaviour
 
     IEnumerator Start()
     {
+        //Hpbar 연결
+        hpBar = GameObject.FindGameObjectWithTag("HP_BAR")?.GetComponent<Image>();
+        //HP 초기화
+        currHp = initHp;
+
         //세 번째로 호출되는 함수
         //Update 함수가 호출되기 전에 호출되는 함수
         //코루틴(Coroutine)으로 호출될 수 있는 함수 (예 : IEnumerator Start() {})
@@ -97,6 +118,49 @@ public class PlayerCtrl : MonoBehaviour
         }else{
             anim.CrossFade("Idle", 0.25f); // 정지 시 Idle 애니메이션 실행
         }
+    }
+
+    //충돌한 Collider의 IsTrigger 옵션이 체크됐을 때 발생
+    void OnTriggerEnter(Collider coll)
+    {
+        //충돌한 Collider가 몬스터의 PUNCH이면 Player HP 차감
+        if(currHp >= 0.0f && coll.CompareTag("PUNCH")){
+            currHp -=10.0f;
+            DisplayHealth();
+
+            Debug.Log($"Player hp = {currHp/initHp}");
+
+            //Player의 생명이 0이하이면 사망처리
+            if(currHp <= 0.0f){
+                PlayerDie();
+            }
+        }
+    }
+
+    //Player의 사망 처리
+    void PlayerDie()
+    {
+        Debug.Log("Player Die !");
+
+        // //MONSTER 태그를 가진 모든 게임오브젝트를 찾아옴
+        // GameObject[] monsters = GameObject.FindGameObjectsWithTag("MONSTER");
+
+        // //모든 몬스터의 OnPlayerDie 함수를 순차적으로 호출
+        // foreach(GameObject monster in monsters){
+        //     monster.SendMessage("OnPlayerDie", SendMessageOptions.DontRequireReceiver);
+        // }
+
+        //주인공 사망 이벤트 호출(발생)
+        OnPlayerDie();
+
+        //GameManager 스크립트의 IsGameOver 프로퍼티 값을변경
+        //GameObject.Find("GameMgr").GetComponent<GameManager>().IsGameOver = true;
+        GameManager.instance.IsGameOver = true;
+    }
+
+    void DisplayHealth()
+    {
+        hpBar.fillAmount = currHp/initHp;
     }
 
     void LateUpdate()
